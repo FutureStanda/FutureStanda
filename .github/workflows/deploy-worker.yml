@@ -11,7 +11,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -25,21 +27,14 @@ jobs:
         working-directory: ./worker
         run: npm install
 
-      - name: Deploy worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: worker
-          # Push every secret in one go so the worker has env on first invoke.
-          secrets: |
-            NOTION_TOKEN
-            ANTHROPIC_API_KEY
-            TELEGRAM_BOT_TOKEN
-            TELEGRAM_CHAT_ID
-            TWILIO_ACCOUNT_SID
-            TWILIO_AUTH_TOKEN
-            TWILIO_NUMBER
-            TWILIO_WHATSAPP_NUMBER
+      - name: Deploy worker code
+        working-directory: ./worker
+        run: npx wrangler deploy
+
+      # Push every secret we have a value for. Empty ones are skipped so the
+      # deploy still succeeds before Twilio etc. are wired up.
+      - name: Sync secrets
+        working-directory: ./worker
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -48,5 +43,15 @@ jobs:
           TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
           TWILIO_NUMBER: ${{ secrets.TWILIO_NUMBER }}
-          # Optional — leave blank in GH secrets if WhatsApp not set up yet.
           TWILIO_WHATSAPP_NUMBER: ${{ secrets.TWILIO_WHATSAPP_NUMBER }}
+        run: |
+          set -e
+          for name in NOTION_TOKEN ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID TWILIO_ACCOUNT_SID TWILIO_AUTH_TOKEN TWILIO_NUMBER TWILIO_WHATSAPP_NUMBER; do
+            val="${!name}"
+            if [ -n "$val" ]; then
+              echo "Pushing $name…"
+              printf '%s' "$val" | npx wrangler secret put "$name"
+            else
+              echo "Skipping $name (empty in GH secrets — set it later and re-run)"
+            fi
+          done
