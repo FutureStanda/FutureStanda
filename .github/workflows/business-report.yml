@@ -1,0 +1,90 @@
+name: Business report
+
+on:
+  # Cron in UTC. Europe/Dublin is UTC+1 in summer (IST), UTC+0 in winter (GMT).
+  # These schedules fire at 07:00 + 20:00 IST (summer) / 06:00 + 19:00 GMT (winter).
+  # Acceptable 1-hour winter drift for now — swap to a TZ-aware scheduler later if needed.
+  schedule:
+    - cron: "0 6 * * *"   # morning digest
+    - cron: "0 19 * * *"  # evening digest
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "morning | evening"
+        type: choice
+        options:
+          - morning
+          - evening
+        default: morning
+      skip_ai:
+        description: "Skip the Claude call (use deterministic fallback string)"
+        type: boolean
+        default: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      TZ: Europe/Dublin
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Pick mode
+        id: pick
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+            echo "skip_ai=${{ inputs.skip_ai }}" >> "$GITHUB_OUTPUT"
+          else
+            HOUR=$(date -u +%H)
+            if [ "$HOUR" = "06" ]; then
+              echo "mode=morning" >> "$GITHUB_OUTPUT"
+            else
+              echo "mode=evening" >> "$GITHUB_OUTPUT"
+            fi
+            echo "skip_ai=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Send report
+        run: |
+          ARGS="--mode ${{ steps.pick.outputs.mode }}"
+          if [ "${{ steps.pick.outputs.skip_ai }}" = "true" ]; then
+            ARGS="$ARGS --skip-ai"
+          fi
+          python -m src.main $ARGS
+
+  # Daily automations that need to fire independently of the morning/evening digest.
+  alerts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'schedule' && github.event.schedule == '0 6 * * *'
+    env:
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      TZ: Europe/Dublin
+    needs: send
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m src.automations.invoice_chase
+      - run: python -m src.automations.stage_stuck
+      - run: python -m src.automations.happiness_pulse
