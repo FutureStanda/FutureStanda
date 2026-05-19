@@ -1,0 +1,17 @@
+name = "futurestanda-receptionist"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+[vars]
+THANK_YOU_URL = "https://futurestanda.ie/thank-you"
+ALLOWED_ORIGINS = "*"
+
+# Secrets — set via: npx wrangler secret put <NAME>
+#   NOTION_TOKEN
+#   ANTHROPIC_API_KEY
+#   TELEGRAM_BOT_TOKEN
+#   TELEGRAM_CHAT_ID
+#   TWILIO_ACCOUNT_SID
+#   TWILIO_AUTH_TOKEN
+#   TWILIO_NUMBER
+#   TWILIO_WHATSAPP_NUMBER
