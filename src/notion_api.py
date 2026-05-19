@@ -16,10 +16,12 @@ from typing import Any, Iterator
 from notion_client import Client as NotionClient
 
 
-# Notion data source IDs (stable, hard-coded — these are the "tables" the bot reads).
-BUSINESS_TASKS_DS = "1bce1db9-1ca2-81c0-b918-000bd3d7c1f6"
-CLIENTS_DS = "5a9a8881-f049-4b37-9454-db3968cb9d5a"
-LEADS_DS = "32ae1db9-1ca2-81f2-a69d-000b442454ed"
+# Notion database IDs (stable, hard-coded — what the bot reads).
+# We query via `databases.query(database_id=...)` for broad SDK-version
+# compatibility — works on single-source DBs (which all of these are).
+BUSINESS_TASKS_DB = "1bce1db9-1ca2-8087-9182-dda1b4f4eebe"
+CLIENTS_DB = "9b50d96b-d508-4c4e-bd84-208ff0fe11e8"
+LEADS_DB = "32ae1db9-1ca2-8186-8869-c258c57219aa"
 
 
 @dataclass
@@ -72,14 +74,14 @@ def client() -> NotionClient:
     return NotionClient(auth=token)
 
 
-def _iter_db(notion: NotionClient, data_source_id: str, **query) -> Iterator[dict[str, Any]]:
-    """Page through every row of a data source."""
+def _iter_db(notion: NotionClient, database_id: str, **query) -> Iterator[dict[str, Any]]:
+    """Page through every row of a database."""
     start_cursor: str | None = None
     while True:
-        kwargs: dict[str, Any] = {"data_source_id": data_source_id, "page_size": 100, **query}
+        kwargs: dict[str, Any] = {"database_id": database_id, "page_size": 100, **query}
         if start_cursor:
             kwargs["start_cursor"] = start_cursor
-        resp = notion.data_sources.query(**kwargs)
+        resp = notion.databases.query(**kwargs)
         yield from resp["results"]
         if not resp.get("has_more"):
             return
@@ -169,7 +171,7 @@ def _relation_ids(prop: dict | None) -> list[str]:
 
 def fetch_tasks(notion: NotionClient) -> list[Task]:
     out: list[Task] = []
-    for page in _iter_db(notion, BUSINESS_TASKS_DS):
+    for page in _iter_db(notion, BUSINESS_TASKS_DB):
         out.append(
             Task(
                 id=page["id"],
@@ -189,7 +191,7 @@ def fetch_tasks(notion: NotionClient) -> list[Task]:
 
 def fetch_clients(notion: NotionClient) -> list[ClientRow]:
     out: list[ClientRow] = []
-    for page in _iter_db(notion, CLIENTS_DS):
+    for page in _iter_db(notion, CLIENTS_DB):
         out.append(
             ClientRow(
                 id=page["id"],
@@ -213,7 +215,7 @@ def fetch_clients(notion: NotionClient) -> list[ClientRow]:
 
 def fetch_leads(notion: NotionClient) -> list[Lead]:
     out: list[Lead] = []
-    for page in _iter_db(notion, LEADS_DS):
+    for page in _iter_db(notion, LEADS_DB):
         out.append(
             Lead(
                 id=page["id"],
@@ -252,7 +254,7 @@ def create_coach_task(
     if client_id:
         props["Client"] = {"relation": [{"id": client_id}]}
     page = notion.pages.create(
-        parent={"data_source_id": BUSINESS_TASKS_DS},
+        parent={"database_id": BUSINESS_TASKS_DB},
         properties=props,
     )
     return page["id"]

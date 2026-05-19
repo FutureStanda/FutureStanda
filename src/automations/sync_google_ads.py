@@ -30,7 +30,7 @@ from datetime import date, timedelta
 from ..notion_api import client as notion_client
 from ._shared import parse_args
 
-CAMPAIGNS_DS = "c240c1b2-9d78-4fef-a580-1fca565cff57"
+CAMPAIGNS_DB = "f0632403-43ea-4fd4-a0f3-8f06a14f0d00"
 
 GAQL = """
 SELECT
@@ -99,8 +99,8 @@ def main() -> int:
     start_cursor = None
     updated = 0
     while True:
-        resp = notion.data_sources.query(
-            data_source_id=CAMPAIGNS_DS,
+        resp = notion.databases.query(
+            database_id=CAMPAIGNS_DB,
             page_size=100,
             start_cursor=start_cursor,
         )
