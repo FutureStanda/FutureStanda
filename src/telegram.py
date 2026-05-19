@@ -13,8 +13,8 @@ def send(text: str, *, dry_run: bool = False) -> None:
         print("=" * 60)
         return
 
-    token = os.environ["TELEGRAM_BOT_TOKEN"]
-    chat_id = os.environ["TELEGRAM_CHAT_ID"]
+    token = os.environ["TELEGRAM_BOT_TOKEN"].strip()
+    chat_id = os.environ["TELEGRAM_CHAT_ID"].strip()
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     resp = requests.post(
         url,

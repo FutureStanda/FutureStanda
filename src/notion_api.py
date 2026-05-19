@@ -70,7 +70,7 @@ class Lead:
 
 
 def client() -> NotionClient:
-    token = os.environ["NOTION_TOKEN"]
+    token = os.environ["NOTION_TOKEN"].strip()
     return NotionClient(auth=token)
 
 

@@ -42,7 +42,7 @@ def analyze(metrics: Metrics, mode: str) -> dict[str, str]:
     payload = _payload(metrics, mode)
 
     try:
-        client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+        client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"].strip())
         resp = client.messages.create(
             model=MODEL,
             max_tokens=400,

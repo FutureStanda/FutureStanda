@@ -95,7 +95,7 @@ def main() -> int:
     metrics = compute(fetch_tasks(notion), fetch_clients(notion), fetch_leads(notion))
     payload = _payload(metrics, "coach")
 
-    anthropic_client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    anthropic_client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"].strip())
     resp = anthropic_client.messages.create(
         model=MODEL,
         max_tokens=1500,
