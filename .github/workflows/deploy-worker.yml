@@ -1,0 +1,52 @@
+name: Deploy receptionist worker
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/telegram-task-notifications-WmqCM
+    paths:
+      - "worker/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: worker/package.json
+
+      - name: Install wrangler
+        working-directory: ./worker
+        run: npm install
+
+      - name: Deploy worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: worker
+          # Push every secret in one go so the worker has env on first invoke.
+          secrets: |
+            NOTION_TOKEN
+            ANTHROPIC_API_KEY
+            TELEGRAM_BOT_TOKEN
+            TELEGRAM_CHAT_ID
+            TWILIO_ACCOUNT_SID
+            TWILIO_AUTH_TOKEN
+            TWILIO_NUMBER
+            TWILIO_WHATSAPP_NUMBER
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_NUMBER: ${{ secrets.TWILIO_NUMBER }}
+          # Optional — leave blank in GH secrets if WhatsApp not set up yet.
+          TWILIO_WHATSAPP_NUMBER: ${{ secrets.TWILIO_WHATSAPP_NUMBER }}
