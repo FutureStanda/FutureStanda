@@ -13,6 +13,8 @@ interface HBarItem {
   value: number
   color: string
   name: string
+  avatar?: string | null
+  clientColor?: string | null
 }
 
 function HBars({ items, valueFmt = (v: number) => String(v) }: { items: HBarItem[]; valueFmt?: (v: number) => string }) {
@@ -21,9 +23,26 @@ function HBars({ items, valueFmt = (v: number) => String(v) }: { items: HBarItem
     <div className="col gap-2" style={{ marginTop: 8 }}>
       {items.map((item, i) => (
         <div key={i} className="row gap-3" style={{ alignItems: 'center' }}>
-          <span style={{ width: 72, fontSize: 11.5, color: 'var(--text-2)', textAlign: 'right', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {item.label}
-          </span>
+          {/* Avatar circle with client initial */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: 90, flexShrink: 0, justifyContent: 'flex-end' }}>
+            {item.avatar && item.clientColor && (
+              <span
+                style={{
+                  width: 18, height: 18, borderRadius: '50%',
+                  background: item.clientColor,
+                  color: '#0a0a0a',
+                  display: 'grid', placeItems: 'center',
+                  font: '700 9px var(--font-sans)',
+                  flexShrink: 0,
+                }}
+              >
+                {item.label.charAt(0).toUpperCase()}
+              </span>
+            )}
+            <span style={{ fontSize: 11.5, color: 'var(--text-2)', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {item.label}
+            </span>
+          </div>
           <div style={{ flex: 1, height: 8, background: 'var(--bg-3)', borderRadius: 4, overflow: 'hidden' }}>
             <div
               style={{
@@ -73,6 +92,8 @@ export default function MarketingPage() {
       name: c.name,
       value: c.roas,
       color: c.roas >= 5 ? 'var(--lime)' : c.roas >= 3.5 ? 'var(--amber)' : 'var(--red)',
+      avatar: c.avatar,
+      clientColor: c.color,
     }))
 
   const spendBars = [...withAds]
@@ -82,7 +103,7 @@ export default function MarketingPage() {
 
   const stats = [
     { label: 'Ad spend · 30d', value: fmtMoney(totalSpend), color: 'var(--text)' },
-    { label: 'Leads from ads', value: totalLeads.toString(), color: 'var(--teal)' },
+    { label: 'Leads from ads', value: totalLeads.toString(), color: 'var(--teal, #4FE3C1)' },
     { label: 'Blended ROAS', value: avgRoas + 'x', color: 'var(--lime)' },
     { label: 'Cost / lead', value: '€' + costPerLead, color: 'var(--text)' },
   ]
@@ -91,6 +112,7 @@ export default function MarketingPage() {
     <div className="page-root">
       <TopBar crumbs={[{ label: 'Marketing' }]} />
       <div className="page-inner col gap-4 fadeup" style={{ maxWidth: 1180, margin: '0 auto', paddingBottom: 60, paddingTop: 28 }}>
+
         {/* Header */}
         <div className="row between" style={{ alignItems: 'flex-end' }}>
           <div className="col gap-2">
@@ -117,10 +139,10 @@ export default function MarketingPage() {
           ))}
         </div>
 
-        {/* Charts row */}
-        <div className="row gap-4" style={{ alignItems: 'flex-start' }}>
+        {/* Charts row — stretch so both panels are same height */}
+        <div className="row gap-4 stretch" style={{ alignItems: 'flex-start' }}>
           {/* ROAS by client */}
-          <div className="panel" style={{ padding: 18, flex: 1 }}>
+          <div className="panel flex-1" style={{ padding: 18 }}>
             <div className="col gap-1" style={{ marginBottom: 14 }}>
               <span style={{ font: '600 14px var(--font-sans)', color: 'var(--text)' }}>ROAS by client</span>
               <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Return on ad spend · ranked</span>
@@ -131,8 +153,8 @@ export default function MarketingPage() {
             />
           </div>
 
-          {/* Spend distribution */}
-          <div className="panel" style={{ padding: 18, width: 340, flexShrink: 0 }}>
+          {/* Spend distribution — width 360 */}
+          <div className="panel" style={{ padding: 18, width: 360, flexShrink: 0 }}>
             <div className="col gap-1" style={{ marginBottom: 14 }}>
               <span style={{ font: '600 14px var(--font-sans)', color: 'var(--text)' }}>Spend distribution</span>
               <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Top 6 accounts · this month</span>
@@ -152,7 +174,8 @@ export default function MarketingPage() {
               <span style={{ font: '600 14px var(--font-sans)', color: 'var(--text)' }}>Content calendar</span>
               <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Scheduled across all accounts · this week</span>
             </div>
-            <button className="btn" style={{ height: 28 }}>
+            {/* btn-ghost for Full calendar button */}
+            <button className="btn btn-ghost" style={{ height: 28 }}>
               <Icon name="calendar" size={13} />Full calendar
             </button>
           </div>
@@ -169,6 +192,7 @@ export default function MarketingPage() {
                       </span>
                     )}
                   </div>
+                  {/* gap-2 on inner col (was gap-1 before) */}
                   <div className="col gap-2" style={{ minHeight: 90 }}>
                     {items.map((item, i) => {
                       const cl = getClient(item.clientId)
@@ -176,7 +200,7 @@ export default function MarketingPage() {
                       return (
                         <div
                           key={i}
-                          className="col gap-1"
+                          className="col gap-2"
                           style={{
                             padding: '7px 8px', borderRadius: 8,
                             background: 'var(--bg-2)',
@@ -200,6 +224,7 @@ export default function MarketingPage() {
             })}
           </div>
         </div>
+
       </div>
     </div>
   )

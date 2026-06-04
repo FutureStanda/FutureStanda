@@ -7,12 +7,14 @@ import { TopBar } from '@/components/layout/TopBar'
 import { Avatar, Delta, HealthPill, PlanBadge, PriorityDot } from '@/components/ui/shared'
 import { Sparkline, AreaChart, BarChart } from '@/components/ui/charts'
 import { Icon } from '@/components/ui/icons'
-import { CLIENTS, INTEGRATIONS_DATA, ACTIVITY } from '@/lib/data'
+import { CLIENTS, INTEGRATIONS_DATA, ACTIVITY, LEADS_DATA } from '@/lib/data'
 import { useData, useUI } from '@/store/use-store'
-import { fmtMoney, fmtNum, healthColor } from '@/lib/utils'
+import { fmtMoney, fmtNum, healthColor, timeAgo } from '@/lib/utils'
 import { OnboardingTracker } from '@/components/clients/OnboardingTracker'
 import { ClientMemory } from '@/components/clients/ClientMemory'
 import { ClientIntegrations } from '@/components/clients/ClientIntegrations'
+import { AdminDrill } from '@/components/overlays/AdminDrill'
+import type { DrillTopic } from '@/components/overlays/AdminDrill'
 import type { Client, Task } from '@/types'
 
 // ---- Integration live-data rules ----
@@ -57,7 +59,7 @@ function PanelHead({ title, sub, action }: { title: string; sub?: string; action
 }
 
 function KpiCard({
-  label, value, delta, icon, color, sub, locked, lockSource, onConnect,
+  label, value, delta, icon, color, sub, locked, lockSource, onConnect, onDrill,
 }: {
   label: string
   value: string | number
@@ -68,6 +70,7 @@ function KpiCard({
   locked: boolean
   lockSource: string
   onConnect: () => void
+  onDrill?: () => void
 }) {
   const [hovered, setHovered] = useState(false)
 
@@ -102,11 +105,13 @@ function KpiCard({
 
   return (
     <button
+      onClick={onDrill}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="panel"
       style={{
-        padding: '14px 16px', textAlign: 'left', width: '100%', display: 'block', cursor: 'default',
+        padding: '14px 16px', textAlign: 'left', width: '100%', display: 'block',
+        cursor: onDrill ? 'pointer' : 'default',
         border: `1px solid ${hovered ? 'var(--border-strong)' : 'var(--border)'}`,
         background: 'var(--bg-1)',
         transform: hovered ? 'translateY(-2px)' : 'none',
@@ -286,7 +291,7 @@ function OverviewTab({ c, gotoConnect }: { c: Client; gotoConnect: () => void })
                 <div key={i} className="row gap-3" style={{ padding: '8px 0', alignItems: 'center' }}>
                   <span style={{ width: 6, height: 6, borderRadius: 3, background: 'var(--lime)', flexShrink: 0 }} />
                   <span style={{ fontSize: 12.5, color: 'var(--text-2)', flex: 1 }}>{a.message}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>recently</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{timeAgo(a.created_at)}</span>
                 </div>
               ))}
             </div>
@@ -301,7 +306,7 @@ function OverviewTab({ c, gotoConnect }: { c: Client; gotoConnect: () => void })
 
 // ---- Tasks Tab ----
 function TasksTab({ c }: { c: Client }) {
-  const { tasks, toggleTask } = useData()
+  const { tasks, toggleTask, removeTask } = useData()
   const { setTaskCompose } = useUI()
   const clientTasks = tasks.filter(t => t.client_id === c.id)
 
@@ -319,7 +324,13 @@ function TasksTab({ c }: { c: Client }) {
       {clientTasks.length > 0 ? (
         <div className="col gap-2">
           {clientTasks.map(t => (
-            <TaskLine key={t.id} t={t} onToggle={() => toggleTask(t.id)} />
+            <TaskLine
+              key={t.id}
+              t={t}
+              onToggle={() => toggleTask(t.id)}
+              onEdit={(task) => setTaskCompose(task)}
+              onDelete={(id) => removeTask(id)}
+            />
           ))}
         </div>
       ) : (
@@ -337,10 +348,16 @@ function TasksTab({ c }: { c: Client }) {
   )
 }
 
-function TaskLine({ t, onToggle }: { t: Task; onToggle: () => void }) {
+function TaskLine({ t, onToggle, onEdit, onDelete }: { t: Task; onToggle: () => void; onEdit?: (t: Partial<Task>) => void; onDelete?: (id: string) => void }) {
   const done = t.status === 'done'
+  const [hovered, setHovered] = useState(false)
   return (
-    <div className="row gap-3" style={{ padding: '9px 10px', borderRadius: 9, alignItems: 'center', background: 'var(--bg-2)' }}>
+    <div
+      className="row gap-3"
+      style={{ padding: '9px 10px', borderRadius: 9, alignItems: 'center', background: 'var(--bg-2)', position: 'relative' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <button
         onClick={onToggle}
         style={{
@@ -362,6 +379,28 @@ function TaskLine({ t, onToggle }: { t: Task; onToggle: () => void }) {
       )}
       {t.assignee && (
         <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{t.assignee}</span>
+      )}
+      {hovered && (
+        <div className="row gap-1" style={{ flexShrink: 0 }}>
+          {onEdit && (
+            <button
+              onClick={() => onEdit(t)}
+              style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-3)', color: 'var(--text-2)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+              title="Edit task"
+            >
+              <Icon name="edit" size={12} />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(t.id)}
+              style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-3)', color: 'var(--red)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+              title="Delete task"
+            >
+              <Icon name="trash" size={12} />
+            </button>
+          )}
+        </div>
       )}
     </div>
   )
@@ -445,7 +484,7 @@ function LeadsTab({ c }: { c: Client }) {
     time: ['12m', '38m', '1h', '2h', '3h', '5h'][i],
     value: ['€2,400', '—', '€890', '€3,100', '—', '€1,650'][i],
   }))
-  const stColor: Record<string, string> = { Booked: 'chip-lime', New: 'chip-dim', Contacted: 'chip-amber', Quoted: 'chip-dim' }
+  const stColor: Record<string, string> = { Booked: 'chip-lime', New: 'chip-teal', Contacted: 'chip-amber', Quoted: 'chip-violet' }
   return (
     <div className="col gap-4 fadeup">
       <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
@@ -682,6 +721,165 @@ function OnboardingTab({ c, onComplete }: { c: Client; onComplete: () => void })
   )
 }
 
+// ---- Automations Tab ----
+
+type AutomationRow = {
+  id: string
+  name: string
+  trigger: string
+  enabled: boolean
+  runs: number
+}
+
+function AutoToggle({ on, onClick }: { on: boolean; onClick: (e: React.MouseEvent) => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: 40, height: 23, borderRadius: 999, border: 'none', cursor: 'pointer',
+        padding: 2, flexShrink: 0,
+        background: on ? 'var(--lime)' : 'var(--bg-3)',
+        transition: 'background .2s',
+      }}
+    >
+      <span style={{
+        display: 'block', width: 19, height: 19, borderRadius: 999,
+        background: on ? '#0a0a0a' : 'var(--text-3)',
+        transform: on ? 'translateX(17px)' : 'translateX(0)',
+        transition: 'transform .2s',
+      }} />
+    </button>
+  )
+}
+
+function AutomationsTab({ c }: { c: Client }) {
+  const clientAutomations = LEADS_DATA.leads // reuse imported data shape; real automations come from AUTOMATIONS stub below
+  // Build seed automations for this client
+  const [automations, setAutomations] = React.useState<AutomationRow[]>(() => [
+    { id: c.id + '-auto1', name: 'New lead → pipeline + score', trigger: 'Lead received', enabled: true, runs: 42 },
+    { id: c.id + '-auto2', name: 'Missed call → auto text-back', trigger: 'Missed call', enabled: true, runs: 18 },
+    { id: c.id + '-auto3', name: 'Post-job review request', trigger: 'Job marked done', enabled: c.health >= 70, runs: 31 },
+    { id: c.id + '-auto4', name: 'Weekly performance report', trigger: 'Every Monday 08:00', enabled: false, runs: 8 },
+  ])
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newTrigger, setNewTrigger] = useState('')
+
+  function toggle(id: string) {
+    setAutomations(prev => prev.map(a => a.id === id ? { ...a, enabled: !a.enabled } : a))
+  }
+
+  function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newName.trim()) return
+    setAutomations(prev => [...prev, {
+      id: c.id + '-auto-' + Date.now(),
+      name: newName.trim(),
+      trigger: newTrigger.trim() || 'Manual',
+      enabled: true,
+      runs: 0,
+    }])
+    setNewName('')
+    setNewTrigger('')
+    setCreating(false)
+  }
+
+  const liveCount = automations.filter(a => a.enabled).length
+  const totalRuns = automations.reduce((s, a) => s + (a.enabled ? a.runs : 0), 0)
+
+  return (
+    <div className="col gap-4 fadeup">
+      {/* Header band */}
+      <div className="panel" style={{ padding: 18, background: 'linear-gradient(120deg,#11140e,transparent 60%)', borderColor: '#cfff3a2e' }}>
+        <div className="row between" style={{ flexWrap: 'wrap', gap: 12 }}>
+          <div className="row gap-3">
+            <span style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--lime)', color: '#0a0a0a', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <Icon name="refresh" size={18} />
+            </span>
+            <div className="col" style={{ gap: 2 }}>
+              <span className="row gap-2" style={{ font: '600 15px var(--font-sans)' }}>
+                Automations for {c.name.split(' ')[0]}
+                <span className="live-dot" />
+              </span>
+              <span style={{ fontSize: 12.5, color: 'var(--text-2)' }}>{liveCount} running · tap any to toggle</span>
+            </div>
+          </div>
+          <div className="row gap-4" style={{ alignItems: 'center' }}>
+            <div className="col" style={{ alignItems: 'flex-end', gap: 1 }}>
+              <span className="num" style={{ font: '700 22px var(--font-sans)', color: '#fff' }}>{totalRuns}</span>
+              <span style={{ fontSize: 10.5, color: 'var(--text-2)' }}>actions this month</span>
+            </div>
+            <button onClick={() => setCreating(true)} className="btn btn-primary" style={{ height: 36 }}>
+              <Icon name="plus" size={13} />New automation
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* New automation form */}
+      {creating && (
+        <div className="panel" style={{ padding: 18 }}>
+          <span style={{ font: '600 13px var(--font-sans)', display: 'block', marginBottom: 12 }}>New automation</span>
+          <form onSubmit={handleCreate} className="col gap-3">
+            <input
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              placeholder="Automation name…"
+              autoFocus
+              style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text)', fontSize: 13, padding: '9px 12px', outline: 'none' }}
+            />
+            <input
+              value={newTrigger}
+              onChange={e => setNewTrigger(e.target.value)}
+              placeholder="Trigger (e.g. Lead received, Missed call…)"
+              style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text)', fontSize: 13, padding: '9px 12px', outline: 'none' }}
+            />
+            <div className="row gap-2">
+              <button type="submit" className="btn btn-primary" style={{ height: 32 }}>Create</button>
+              <button type="button" onClick={() => setCreating(false)} className="btn" style={{ height: 32 }}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Automations list */}
+      <div className="col gap-2">
+        <span className="eyebrow" style={{ margin: 0 }}>Running for this client</span>
+        {automations.map(auto => (
+          <div
+            key={auto.id}
+            className="panel"
+            style={{ padding: 14, opacity: auto.enabled ? 1 : 0.6, transition: 'opacity .2s, border-color .2s' }}
+          >
+            <div className="row between">
+              <div className="row gap-3" style={{ minWidth: 0 }}>
+                <span style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--lime)1f', color: 'var(--lime)', border: '1px solid var(--lime)44', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <Icon name="refresh" size={13} />
+                </span>
+                <div className="col" style={{ gap: 2, minWidth: 0 }}>
+                  <span style={{ font: '600 13px var(--font-sans)', color: '#fff' }}>{auto.name}</span>
+                  <span className="row gap-2" style={{ fontSize: 11, color: 'var(--text-2)', flexWrap: 'wrap' }}>
+                    <span className="chip" style={{ height: 18, fontSize: 9.5, background: 'var(--bg-2)', borderColor: 'var(--border)', color: 'var(--text-2)' }}>{auto.trigger}</span>
+                  </span>
+                </div>
+              </div>
+              <AutoToggle on={auto.enabled} onClick={(e) => { e.stopPropagation(); toggle(auto.id) }} />
+            </div>
+            <div className="row between" style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+              <span className="row gap-2" style={{ fontSize: 11, color: auto.enabled ? 'var(--text-2)' : 'var(--text-3)' }}>
+                {auto.enabled
+                  ? <><span className="live-dot" style={{ background: 'var(--lime)' }} />Active</>
+                  : <><Icon name="pause" size={11} />Paused</>}
+              </span>
+              <span className="num" style={{ fontSize: 11, color: 'var(--text-3)' }}>{auto.runs} runs this month</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ---- Main Page ----
 type TabId = 'onboarding' | 'overview' | 'tasks' | 'marketing' | 'automations' | 'leads' | 'reputation' | 'integrations' | 'memory'
 
@@ -693,6 +891,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
   const defaultTab: TabId = c?.onboarding_active ? 'onboarding' : 'overview'
   const [tab, setTab] = useState<TabId>(defaultTab)
   const [connectedIds, setConnectedIds] = useState<string[]>(c?.connected || [])
+  const [drill, setDrill] = useState<DrillTopic | null>(null)
 
   const gotoConnect = useCallback(() => setTab('integrations'), [])
 
@@ -708,7 +907,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
   }
 
   const tabs: Array<[TabId, string]> = [
-    ['onboarding', 'Onboarding'],
+    ...(c.onboarding_active ? [['onboarding', 'Onboarding'] as [TabId, string]] : []),
     ['overview', 'Overview'],
     ['tasks', 'Tasks'],
     ['marketing', 'Marketing'],
@@ -723,6 +922,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
 
   return (
     <div className="page-root">
+      <AdminDrill topic={drill} onClose={() => setDrill(null)} />
       <TopBar crumbs={[{ label: 'Clients', href: '/dashboard/clients' }, { label: c.name }]} />
       <div className="page-inner" style={{ maxWidth: 1180, margin: '0 auto', paddingBottom: 60 }}>
         <div className="col gap-4">
@@ -848,6 +1048,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                 locked={!isLive(c, 'leads30')}
                 lockSource={lockName('leads30')}
                 onConnect={gotoConnect}
+                onDrill={() => setDrill({ type: 'clientMetric', clientId: c.id, metric: 'leads' })}
               />
               <KpiCard
                 label="Booked jobs"
@@ -858,6 +1059,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                 locked={!isLive(c, 'bookings30')}
                 lockSource={lockName('bookings30')}
                 onConnect={gotoConnect}
+                onDrill={() => setDrill({ type: 'clientMetric', clientId: c.id, metric: 'bookings' })}
               />
               <KpiCard
                 label="Revenue · 30d"
@@ -868,6 +1070,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                 locked={!isLive(c, 'revenue30')}
                 lockSource={lockName('revenue30')}
                 onConnect={gotoConnect}
+                onDrill={() => setDrill({ type: 'clientMetric', clientId: c.id, metric: 'revenue' })}
               />
               <KpiCard
                 label="ROAS"
@@ -888,6 +1091,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                 locked={!isLive(c, 'reviews')}
                 lockSource={lockName('reviews')}
                 onConnect={gotoConnect}
+                onDrill={() => setDrill({ type: 'clientMetric', clientId: c.id, metric: 'reviews' })}
               />
             </div>
           )}
@@ -916,13 +1120,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
           {tab === 'overview' && <OverviewTab c={c} gotoConnect={gotoConnect} />}
           {tab === 'tasks' && <TasksTab c={c} />}
           {tab === 'marketing' && <MarketingTab c={c} />}
-          {tab === 'automations' && (
-            <div className="panel fadeup" style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>⚡</div>
-              <div style={{ font: '600 15px var(--font-sans)', color: 'var(--text)', marginBottom: 8 }}>Automation canvas</div>
-              <div style={{ fontSize: 13 }}>Coming soon — visual n8n workflow builder.</div>
-            </div>
-          )}
+          {tab === 'automations' && <AutomationsTab c={c} />}
           {tab === 'leads' && <LeadsTab c={c} />}
           {tab === 'reputation' && <ReputationTab c={c} />}
           {tab === 'integrations' && (

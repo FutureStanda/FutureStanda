@@ -12,14 +12,15 @@ export function TopBar({ crumbs, title }: { crumbs?: Crumb[]; title?: string }) 
 
   return (
     <header style={{
-      height: 52, flexShrink: 0,
+      height: 56, flexShrink: 0,
       borderBottom: '1px solid var(--border)',
       background: 'linear-gradient(180deg, #0e100e, #0b0c0b)',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '0 20px', gap: 16,
+      backdropFilter: 'blur(8px)',
     }}>
       {/* breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
         {crumbs ? crumbs.map((c, i) => (
           <React.Fragment key={i}>
             {i > 0 && <span style={{ color: 'var(--text-3)', fontSize: 13 }}>/</span>}

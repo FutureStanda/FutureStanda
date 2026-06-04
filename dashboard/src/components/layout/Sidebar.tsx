@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Icon } from '@/components/ui/icons'
-import { CLIENTS, TASKS } from '@/lib/data'
+import { CLIENTS, TASKS, LEADS_DATA } from '@/lib/data'
 import { useUI } from '@/store/use-store'
 import { cn } from '@/lib/utils'
 
@@ -106,6 +106,28 @@ function AccountMenu({ onClose }: { onClose: () => void }) {
   )
 }
 
+function PinnedClientRow({ c, isActive }: { c: (typeof CLIENTS)[number]; isActive: boolean }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={`/dashboard/clients/${c.id}`}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 9, width: '100%', height: 30,
+        padding: '0 10px', borderRadius: 8, textDecoration: 'none',
+        background: isActive ? 'var(--bg-active)' : hovered ? 'var(--bg-2)' : 'transparent',
+        color: isActive ? 'var(--text)' : 'var(--text-2)',
+        transition: 'background .12s',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <span style={{ width: 7, height: 7, borderRadius: 2, background: c.color, flexShrink: 0 }} />
+      <span style={{ flex: 1, font: '500 12.5px var(--font-sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+      {c.flag === 'At risk' && <span style={{ width: 6, height: 6, borderRadius: 3, background: 'var(--red)', flexShrink: 0 }} />}
+    </Link>
+  )
+}
+
 export function Sidebar() {
   const pathname = usePathname()
   const { setQuickOpen, setSidebarCollapsed, sidebarCollapsed } = useUI()
@@ -115,12 +137,13 @@ export function Sidebar() {
   const [menuOpen, setMenuOpen] = useState(false)
 
   const pendingTotal = TASKS.filter(t => t.status !== 'done').length
+  const activeLeadsCount = LEADS_DATA.leads.filter(l => !['won', 'lost'].includes(l.stage)).length
   const isActive = (path: string) => pathname === path || pathname.startsWith(path + '/')
 
   const navLinks = [
     { icon: 'home', label: 'Briefing', href: '/dashboard/briefing' },
     { icon: 'users', label: 'Clients', href: '/dashboard/clients', trailing: <span className="chip chip-dim" style={{ height: 18, padding: '0 6px', fontSize: 10 }}>{CLIENTS.length}</span> },
-    { icon: 'inbox', label: 'Leads', href: '/dashboard/leads', trailing: <span className="chip chip-lime" style={{ height: 18, padding: '0 6px', fontSize: 10 }}>5</span> },
+    { icon: 'inbox', label: 'Leads', href: '/dashboard/leads', trailing: <span className="chip chip-lime" style={{ height: 18, padding: '0 6px', fontSize: 10 }}>{activeLeadsCount}</span> },
     { icon: 'checkSquare', label: 'Tasks', href: '/dashboard/tasks', trailing: <span className="chip chip-lime" style={{ height: 18, padding: '0 6px', fontSize: 10 }}>{pendingTotal}</span> },
     { icon: 'megaphone', label: 'Marketing', href: '/dashboard/marketing' },
     { icon: 'target', label: 'Objectives', href: '/dashboard/objectives' },
@@ -216,18 +239,12 @@ export function Sidebar() {
             <SectionToggle label="Pinned clients" open={openClients} onToggle={() => setOpenClients(!openClients)} />
             {openClients && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 8 }}>
-                {CLIENTS.slice(0, 5).map(c => (
-                  <Link key={c.id} href={`/dashboard/clients/${c.id}`} style={{
-                    display: 'flex', alignItems: 'center', gap: 9, width: '100%', height: 30,
-                    padding: '0 10px', borderRadius: 8, textDecoration: 'none',
-                    background: pathname.endsWith(c.id) ? 'var(--bg-active)' : 'transparent',
-                    color: pathname.endsWith(c.id) ? 'var(--text)' : 'var(--text-2)',
-                  }}>
-                    <span style={{ width: 7, height: 7, borderRadius: 2, background: c.color, flexShrink: 0 }} />
-                    <span style={{ flex: 1, font: '500 12.5px var(--font-sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-                    {c.health < 65 && <span style={{ width: 6, height: 6, borderRadius: 3, background: 'var(--red)', flexShrink: 0 }} />}
-                  </Link>
-                ))}
+                {CLIENTS.slice(0, 5).map(c => {
+                  const isCurrentClient = pathname.endsWith(c.id)
+                  return (
+                    <PinnedClientRow key={c.id} c={c} isActive={isCurrentClient} />
+                  )
+                })}
               </div>
             )}
 

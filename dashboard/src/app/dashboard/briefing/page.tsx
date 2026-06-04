@@ -84,7 +84,7 @@ function BriefColumn({
 }) {
   const colorMap = { lime: 'var(--lime)', red: 'var(--red)', amber: 'var(--amber)' }
   const color = colorMap[tone]
-  const toneLabel = tone === 'lime' ? 'Win' : tone === 'red' ? 'Risk' : 'Today'
+  const toneLabel = tone === 'lime' ? 'Win' : tone === 'red' ? 'Needs you' : 'Today'
   return (
     <div className="col gap-3 flex-1" style={{ padding: '16px 18px', minWidth: 0 }}>
       <div className="row gap-2" style={{ color }}>
@@ -185,7 +185,7 @@ export default function BriefingPage() {
               value={totalLeads}
               delta={0.22}
               spark={[210, 244, 268, 290, 320, 358, totalLeads]}
-              color="var(--blue)"
+              color="var(--teal)"
               onClick={() => setDrill({ type: 'stat', key: 'leads', label: 'Leads · 30 days' })}
             />
             <PortfolioStat
@@ -216,7 +216,7 @@ export default function BriefingPage() {
                 <span style={{ font: '600 13px var(--font-sans)' }}>Boost · Daily brief</span>
                 <span className="chip chip-dim">auto-generated 06:00</span>
               </div>
-              <button className="btn" style={{ height: 28 }}>
+              <button className="btn btn-ghost" style={{ height: 28 }}>
                 <Icon name="refresh" size={13} />
                 Regenerate
               </button>
@@ -256,7 +256,7 @@ export default function BriefingPage() {
                 <span style={{ font: '600 14px var(--font-sans)' }}>Client momentum</span>
                 <button
                   onClick={() => router.push('/dashboard/clients')}
-                  className="btn"
+                  className="btn btn-ghost"
                   style={{ height: 26 }}
                 >
                   All clients
