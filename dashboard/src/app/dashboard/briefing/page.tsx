@@ -3,11 +3,13 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
-import { Delta, HealthPill, Avatar } from '@/components/ui/shared'
+import { Delta, Avatar } from '@/components/ui/shared'
 import { Sparkline } from '@/components/ui/charts'
 import { Icon } from '@/components/ui/icons'
 import { CLIENTS, ACTIVITY, MRR_TREND, BRIEFING } from '@/lib/data'
-import { fmtMoney, fmtNum, timeAgo } from '@/lib/utils'
+import { fmtMoney, timeAgo } from '@/lib/utils'
+import { AdminDrill } from '@/components/overlays/AdminDrill'
+import type { DrillTopic, BriefItem } from '@/components/overlays/AdminDrill'
 import type { Client } from '@/types'
 
 function PortfolioStat({
@@ -52,12 +54,12 @@ function PortfolioStat({
 
 function ActivityIcon({ kind }: { kind: string }) {
   const map: Record<string, { icon: string; color: string }> = {
-    lead: { icon: 'inbox', color: 'var(--lime)' },
-    review: { icon: 'star', color: 'var(--amber)' },
-    booking: { icon: 'calendar', color: 'var(--teal)' },
-    ad: { icon: 'trend', color: 'var(--blue)' },
-    missed: { icon: 'phoneMissed', color: 'var(--red)' },
-    ai: { icon: 'sparkle', color: 'var(--violet)' },
+    lead:    { icon: 'inbox',       color: 'var(--lime)' },
+    review:  { icon: 'star',        color: 'var(--amber)' },
+    booking: { icon: 'calendar',    color: 'var(--blue)' },
+    ad:      { icon: 'trend',       color: 'var(--blue)' },
+    missed:  { icon: 'phoneMissed', color: 'var(--red)' },
+    ai:      { icon: 'sparkle',     color: 'var(--violet)' },
   }
   const m = map[kind] || map.lead
   return (
@@ -77,11 +79,12 @@ function BriefColumn({
   icon: string
   tone: 'lime' | 'red' | 'amber'
   title: string
-  items: Array<{ t: string }>
-  onOpen?: (item: { t: string }) => void
+  items: BriefItem[]
+  onOpen?: (item: BriefItem, tone: 'lime' | 'red' | 'amber', toneLabel: string) => void
 }) {
   const colorMap = { lime: 'var(--lime)', red: 'var(--red)', amber: 'var(--amber)' }
   const color = colorMap[tone]
+  const toneLabel = tone === 'lime' ? 'Win' : tone === 'red' ? 'Risk' : 'Today'
   return (
     <div className="col gap-3 flex-1" style={{ padding: '16px 18px', minWidth: 0 }}>
       <div className="row gap-2" style={{ color }}>
@@ -90,24 +93,29 @@ function BriefColumn({
       </div>
       <div className="col gap-1">
         {items.map((it, i) => (
-          <BriefItem key={i} item={it} color={color} onOpen={onOpen} />
+          <BriefItemRow
+            key={i}
+            item={it}
+            color={color}
+            onOpen={onOpen ? () => onOpen(it, tone, toneLabel) : undefined}
+          />
         ))}
       </div>
     </div>
   )
 }
 
-function BriefItem({
+function BriefItemRow({
   item, color, onOpen,
 }: {
-  item: { t: string }
+  item: BriefItem
   color: string
-  onOpen?: (item: { t: string }) => void
+  onOpen?: () => void
 }) {
   const [hovered, setHovered] = useState(false)
   return (
     <button
-      onClick={() => onOpen?.(item)}
+      onClick={onOpen}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -128,13 +136,23 @@ function BriefItem({
 
 export default function BriefingPage() {
   const router = useRouter()
+  const [drill, setDrill] = useState<DrillTopic | null>(null)
 
   const totalLeads = CLIENTS.reduce((a, c) => a + c.leads30, 0)
-  const totalRev = CLIENTS.reduce((a, c) => a + c.revenue30, 0)
-  const totalMrr = CLIENTS.reduce((a, c) => a + c.mrr, 0)
-  const avgHealth = Math.round(CLIENTS.reduce((a, c) => a + c.health, 0) / CLIENTS.length)
+  const totalRev   = CLIENTS.reduce((a, c) => a + c.revenue30, 0)
+  const totalMrr   = CLIENTS.reduce((a, c) => a + c.mrr, 0)
+  const avgHealth  = Math.round(CLIENTS.reduce((a, c) => a + c.health, 0) / CLIENTS.length)
 
   const movers = [...CLIENTS].sort((a, b) => b.leads_delta - a.leads_delta)
+
+  function openBriefDrill(item: BriefItem, tone: 'lime' | 'red' | 'amber', toneLabel: string) {
+    const iconMap: Record<string, string> = {
+      lime:  'flame',
+      red:   'shield',
+      amber: 'clock',
+    }
+    setDrill({ type: 'brief', item, tone, icon: iconMap[tone] || 'bolt', toneLabel })
+  }
 
   return (
     <div className="page-root">
@@ -160,13 +178,15 @@ export default function BriefingPage() {
               value={fmtMoney(totalMrr)}
               delta={0.13}
               spark={MRR_TREND.map(m => m.v)}
+              onClick={() => setDrill({ type: 'stat', key: 'mrr', label: 'Monthly Recurring Revenue' })}
             />
             <PortfolioStat
               label="Leads · 30d"
               value={totalLeads}
               delta={0.22}
               spark={[210, 244, 268, 290, 320, 358, totalLeads]}
-              color="var(--teal)"
+              color="var(--blue)"
+              onClick={() => setDrill({ type: 'stat', key: 'leads', label: 'Leads · 30 days' })}
             />
             <PortfolioStat
               label="Client revenue · 30d"
@@ -174,6 +194,7 @@ export default function BriefingPage() {
               delta={0.16}
               spark={[180, 195, 210, 225, 240, 252, 264]}
               color="var(--blue)"
+              onClick={() => setDrill({ type: 'stat', key: 'revenue', label: 'Client Revenue · 30 days' })}
             />
             <PortfolioStat
               label="Avg health"
@@ -181,6 +202,7 @@ export default function BriefingPage() {
               delta={0.04}
               spark={[78, 79, 77, 80, 81, 80, avgHealth]}
               color="var(--amber)"
+              onClick={() => setDrill({ type: 'stat', key: 'health', label: 'Portfolio Health' })}
             />
           </div>
 
@@ -204,21 +226,24 @@ export default function BriefingPage() {
                 icon="flame"
                 tone="lime"
                 title="Wins"
-                items={BRIEFING.wins}
+                items={BRIEFING.wins as BriefItem[]}
+                onOpen={openBriefDrill}
               />
               <div style={{ width: 1, background: 'var(--border)' }} />
               <BriefColumn
                 icon="shield"
                 tone="red"
                 title="Needs you"
-                items={BRIEFING.risks}
+                items={BRIEFING.risks as BriefItem[]}
+                onOpen={openBriefDrill}
               />
               <div style={{ width: 1, background: 'var(--border)' }} />
               <BriefColumn
                 icon="clock"
                 tone="amber"
                 title="Today"
-                items={BRIEFING.today}
+                items={BRIEFING.today as BriefItem[]}
+                onOpen={openBriefDrill}
               />
             </div>
           </div>
@@ -240,7 +265,13 @@ export default function BriefingPage() {
               </div>
               <div className="col gap-2">
                 {movers.slice(0, 6).map(c => (
-                  <MoverRow key={c.id} c={c} onClick={() => router.push(`/dashboard/clients/${c.id}`)} />
+                  <MoverRow
+                    key={c.id}
+                    c={c}
+                    onClick={() => router.push(`/dashboard/clients/${c.id}`)}
+                    onLeadsDrill={() => setDrill({ type: 'clientMetric', clientId: c.id, metric: 'leads' })}
+                    onRevDrill={() => setDrill({ type: 'clientMetric', clientId: c.id, metric: 'revenue' })}
+                  />
                 ))}
               </div>
             </div>
@@ -255,7 +286,7 @@ export default function BriefingPage() {
                 </span>
               </div>
               <div className="col" style={{ gap: 2, maxHeight: 360, overflowY: 'auto', margin: '0 -8px', padding: '0 8px' }}>
-                {ACTIVITY.map((a, i) => {
+                {ACTIVITY.map((a) => {
                   const client = a.client_id ? CLIENTS.find(c => c.id === a.client_id) : null
                   return (
                     <ActivityRow
@@ -273,42 +304,66 @@ export default function BriefingPage() {
           </div>
         </div>
       </div>
+
+      {/* AdminDrill overlay */}
+      <AdminDrill topic={drill} onClose={() => setDrill(null)} />
     </div>
   )
 }
 
-function MoverRow({ c, onClick }: { c: Client; onClick: () => void }) {
+function MoverRow({
+  c, onClick, onLeadsDrill, onRevDrill,
+}: {
+  c: Client
+  onClick: () => void
+  onLeadsDrill: () => void
+  onRevDrill: () => void
+}) {
   const [hovered, setHovered] = useState(false)
   return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <div
       style={{
         display: 'flex', alignItems: 'center', gap: 12, width: '100%',
-        padding: '9px 10px', borderRadius: 10, border: 'none', cursor: 'pointer',
+        padding: '9px 10px', borderRadius: 10,
         background: hovered ? 'var(--bg-2)' : 'transparent',
-        textAlign: 'left', transition: 'background .12s',
+        transition: 'background .12s',
+        position: 'relative',
       }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      <Avatar client={c} />
-      <div className="col" style={{ gap: 1, flex: 1, minWidth: 0 }}>
-        <span className="truncate" style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 15, color: '#fff' }}>{c.name}</span>
-        <span style={{ font: '500 11px var(--font-sans)', color: 'var(--text-2)' }}>{c.city} · {c.niche}</span>
-      </div>
-      <Sparkline
-        data={c.sparkline?.length ? c.sparkline : [c.leads30 * 0.6, c.leads30 * 0.8, c.leads30]}
-        w={70}
-        h={26}
-        color={c.leads_delta >= 0 ? 'var(--lime)' : 'var(--red)'}
-        fill={false}
-        id={c.id}
-      />
-      <div className="col" style={{ alignItems: 'flex-end', gap: 2, width: 64 }}>
+      {/* Main click area → client page */}
+      <button
+        onClick={onClick}
+        style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+      >
+        <Avatar client={c} />
+        <div className="col" style={{ gap: 1, flex: 1, minWidth: 0 }}>
+          <span className="truncate" style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 15, color: '#fff' }}>{c.name}</span>
+          <span style={{ font: '500 11px var(--font-sans)', color: 'var(--text-2)' }}>{c.city} · {c.niche}</span>
+        </div>
+        <Sparkline
+          data={c.sparkline?.length ? c.sparkline : [c.leads30 * 0.6, c.leads30 * 0.8, c.leads30]}
+          w={70}
+          h={26}
+          color={c.leads_delta >= 0 ? 'var(--lime)' : 'var(--red)'}
+          fill={false}
+          id={c.id}
+        />
+      </button>
+
+      {/* Leads number — clickable for drill */}
+      <button
+        onClick={e => { e.stopPropagation(); onLeadsDrill() }}
+        title="Drill into leads"
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, width: 64, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', borderRadius: 6, transition: 'background .1s' }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-3)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+      >
         <span className="num" style={{ fontWeight: 600, fontSize: 13 }}>{c.leads30}</span>
         <Delta v={c.leads_delta} />
-      </div>
-    </button>
+      </button>
+    </div>
   )
 }
 

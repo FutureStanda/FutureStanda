@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
 import { Segmented } from '@/components/ui/shared'
 import { Icon } from '@/components/ui/icons'
 import { useUI } from '@/store/use-store'
 import { LEADS_DATA } from '@/lib/data'
+import { ResearchRunning, Dossier } from '@/components/leads/ResearchDossier'
 
 // ---- Types ----
 interface LeadItem {
@@ -47,8 +48,236 @@ function stageLabel(id: string) {
   return (LEADS_DATA.stages.find(s => s.id === id) || { label: id }).label
 }
 
+// ---- Lead Detail Panel ----
+function LeadPanel({
+  lead,
+  onClose,
+}: {
+  lead: LeadItem
+  onClose: () => void
+}) {
+  // Local research status — allows "Run Deep Research" to trigger the flow
+  const [researchStatus, setResearchStatus] = useState<string>(lead.research)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // Reset status when lead changes
+  useEffect(() => {
+    setResearchStatus(lead.research)
+  }, [lead.id, lead.research])
+
+  // Click-outside to close
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        onClose()
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [onClose])
+
+  // Escape key to close
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  function handleRunResearch() {
+    setResearchStatus('running')
+    // After 4.5s auto-transition handled by ResearchRunning's onComplete
+  }
+
+  function handleResearchComplete() {
+    setResearchStatus('complete')
+  }
+
+  const sc = stageColor(lead.stage)
+
+  return (
+    <>
+      {/* Backdrop (semi-transparent, click handled outside via useEffect) */}
+      <div
+        style={{
+          position: 'fixed', inset: 0, zIndex: 49,
+          background: 'rgba(0,0,0,0.35)',
+          backdropFilter: 'blur(2px)',
+        }}
+      />
+
+      {/* Slide panel */}
+      <div
+        ref={panelRef}
+        style={{
+          position: 'fixed', top: 0, right: 0, bottom: 0,
+          width: 520,
+          zIndex: 50,
+          background: 'var(--bg-1)',
+          borderLeft: '1px solid var(--border)',
+          display: 'flex', flexDirection: 'column',
+          boxShadow: '-8px 0 40px rgba(0,0,0,0.5)',
+          animation: 'slideInRight 0.22s ease both',
+        }}
+      >
+        {/* Panel header */}
+        <div
+          style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--border)',
+            display: 'flex', alignItems: 'center', gap: 12,
+            flexShrink: 0,
+          }}
+        >
+          <span
+            style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: lead.color, color: '#0a0a0a',
+              display: 'grid', placeItems: 'center',
+              font: '700 15px var(--font-sans)', flexShrink: 0,
+            }}
+          >
+            {lead.business[0]}
+          </span>
+          <div className="col" style={{ gap: 1, flex: 1, minWidth: 0 }}>
+            <span style={{ font: '600 15px var(--font-sans)', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {lead.business}
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+              {lead.person} · {lead.niche} · {lead.area}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text-3)', display: 'grid', placeItems: 'center',
+              width: 28, height: 28, borderRadius: 8,
+              transition: 'color .12s, background .12s',
+              flexShrink: 0,
+            }}
+            onMouseEnter={e => {
+              const el = e.currentTarget as HTMLButtonElement
+              el.style.background = 'var(--bg-2)'
+              el.style.color = 'var(--text)'
+            }}
+            onMouseLeave={e => {
+              const el = e.currentTarget as HTMLButtonElement
+              el.style.background = 'none'
+              el.style.color = 'var(--text-3)'
+            }}
+          >
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+
+        {/* Lead meta row */}
+        <div
+          style={{
+            padding: '14px 20px',
+            borderBottom: '1px solid var(--border)',
+            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+            flexShrink: 0,
+          }}
+        >
+          <span
+            className="chip"
+            style={{
+              background: sc + '22',
+              color: sc,
+              borderColor: sc + '44',
+            }}
+          >
+            {stageLabel(lead.stage)}
+          </span>
+          <ResearchBadge status={researchStatus} />
+          <span className="chip chip-dim">
+            <Icon name="calendar" size={11} />{lead.meetingAt}
+          </span>
+          <span style={{ font: '600 13px var(--font-sans)', color: 'var(--lime)', marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' }}>
+            €{lead.value.toLocaleString()}
+          </span>
+        </div>
+
+        {/* Scrollable body */}
+        <div
+          style={{
+            flex: 1, overflowY: 'auto', overflowX: 'hidden',
+            padding: 20,
+          }}
+        >
+          {researchStatus === 'complete' && (
+            <Dossier lead={lead} />
+          )}
+
+          {researchStatus === 'running' && (
+            <ResearchRunning lead={lead} onComplete={handleResearchComplete} />
+          )}
+
+          {(researchStatus === 'queued' || researchStatus === 'pending') && (
+            <div
+              className="panel"
+              style={{
+                padding: 32,
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', gap: 16,
+                borderColor: '#8b7cff44',
+                background: 'linear-gradient(135deg, #14111f, transparent 60%)',
+                textAlign: 'center',
+              }}
+            >
+              <span
+                style={{
+                  width: 52, height: 52, borderRadius: 15,
+                  background: '#8B7CFF22', border: '1px solid #8B7CFF44',
+                  display: 'grid', placeItems: 'center',
+                  color: '#8B7CFF',
+                }}
+              >
+                <Icon name="sparkle" size={24} />
+              </span>
+              <div className="col gap-2" style={{ alignItems: 'center' }}>
+                <span style={{ font: '600 15px var(--font-sans)', color: 'var(--text)' }}>
+                  No dossier yet
+                </span>
+                <span style={{ fontSize: 13, color: 'var(--text-3)', maxWidth: 320, lineHeight: 1.6 }}>
+                  Run deep research to get a full competitor scan, gap analysis, Meta Ad Library plays and a speed-to-results roadmap.
+                </span>
+              </div>
+              <button
+                onClick={handleRunResearch}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  height: 38, padding: '0 20px', borderRadius: 10,
+                  background: '#8B7CFF', border: 'none',
+                  color: '#0a0a0a', font: '600 13.5px var(--font-sans)',
+                  cursor: 'pointer',
+                  transition: 'background .12s',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#9d90ff' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#8B7CFF' }}
+              >
+                <Icon name="sparkle" size={15} />
+                Run Deep Research
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `}</style>
+    </>
+  )
+}
+
 // ---- Pipeline view ----
-function PipelineView({ leads }: { leads: LeadItem[] }) {
+function PipelineView({ leads, onSelectLead }: { leads: LeadItem[]; onSelectLead: (l: LeadItem) => void }) {
   const stages = LEADS_DATA.stages.filter(s => s.id !== 'lost')
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${stages.length}, minmax(180px, 1fr))`, gap: 12, alignItems: 'flex-start', overflowX: 'auto' }}>
@@ -72,9 +301,13 @@ function PipelineView({ leads }: { leads: LeadItem[] }) {
                     padding: 12, borderRadius: 11,
                     background: 'var(--bg-2)',
                     border: '1px solid var(--border)',
-                    cursor: 'default',
+                    cursor: 'pointer',
                     borderLeft: `3px solid ${l.color}`,
+                    transition: 'background .12s',
                   }}
+                  onClick={() => onSelectLead(l)}
+                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-3)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-2)' }}
                 >
                   <div className="row gap-2" style={{ minWidth: 0 }}>
                     <span style={{
@@ -111,7 +344,7 @@ function PipelineView({ leads }: { leads: LeadItem[] }) {
 }
 
 // ---- Meetings view ----
-function MeetingsView({ leads }: { leads: LeadItem[] }) {
+function MeetingsView({ leads, onSelectLead }: { leads: LeadItem[]; onSelectLead: (l: LeadItem) => void }) {
   const upcoming = leads
     .filter(l => !['won', 'lost'].includes(l.stage) && l.meetingIn !== 'done')
     .sort((a, b) => a.priority - b.priority)
@@ -168,7 +401,12 @@ function MeetingsView({ leads }: { leads: LeadItem[] }) {
                 padding: '14px 18px',
                 borderBottom: i < upcoming.length - 1 ? '1px solid var(--border)' : 'none',
                 background: 'transparent',
+                cursor: 'pointer',
+                transition: 'background .12s',
               }}
+              onClick={() => onSelectLead(l)}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-2)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
             >
               <div className="col" style={{ alignItems: 'center', width: 64, flexShrink: 0, gap: 2 }}>
                 <span style={{ font: '600 17px var(--font-sans)', color: l.color }}>{time}</span>
@@ -259,7 +497,7 @@ function ProcessMapView() {
 }
 
 // ---- Table view ----
-function TableView({ leads }: { leads: LeadItem[] }) {
+function TableView({ leads, onSelectLead }: { leads: LeadItem[]; onSelectLead: (l: LeadItem) => void }) {
   return (
     <div className="panel" style={{ overflow: 'hidden' }}>
       <div style={{
@@ -280,7 +518,12 @@ function TableView({ leads }: { leads: LeadItem[] }) {
             gap: 12, alignItems: 'center',
             padding: '12px 16px',
             borderBottom: '1px solid var(--border)',
+            cursor: 'pointer',
+            transition: 'background .12s',
           }}
+          onClick={() => onSelectLead(l)}
+          onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-2)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
         >
           <div className="row gap-3" style={{ minWidth: 0 }}>
             <span style={{
@@ -323,6 +566,7 @@ function TableView({ leads }: { leads: LeadItem[] }) {
 export default function LeadsPage() {
   const { setLeadOpen } = useUI()
   const [view, setView] = useState<'pipeline' | 'meetings' | 'process' | 'table'>('pipeline')
+  const [selectedLead, setSelectedLead] = useState<LeadItem | null>(null)
 
   const leads = LEADS_DATA.leads as LeadItem[]
   const liveCount = leads.filter(l => !['won', 'lost'].includes(l.stage)).length
@@ -370,11 +614,19 @@ export default function LeadsPage() {
         </div>
 
         {/* Views */}
-        {view === 'pipeline' && <PipelineView leads={leads} />}
-        {view === 'meetings' && <MeetingsView leads={leads} />}
+        {view === 'pipeline' && <PipelineView leads={leads} onSelectLead={setSelectedLead} />}
+        {view === 'meetings' && <MeetingsView leads={leads} onSelectLead={setSelectedLead} />}
         {view === 'process' && <ProcessMapView />}
-        {view === 'table' && <TableView leads={leads} />}
+        {view === 'table' && <TableView leads={leads} onSelectLead={setSelectedLead} />}
       </div>
+
+      {/* Lead detail panel */}
+      {selectedLead && (
+        <LeadPanel
+          lead={selectedLead}
+          onClose={() => setSelectedLead(null)}
+        />
+      )}
     </div>
   )
 }

@@ -291,6 +291,12 @@ a {
   padding-bottom: 60px;
 }
 
+/* ─── AdminDrill slide-in ─────────────────────────────────── */
+@keyframes adr-slide-in {
+  from { transform: translateX(100%); opacity: 0.6; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
 /* ─── Input ───────────────────────────────────────────────── */
 input, textarea, select {
   color: var(--text);
@@ -302,4 +308,85 @@ input, textarea, select {
 input:focus, textarea:focus, select:focus {
   outline: none;
   border-color: var(--lime);
+}
+
+/* ─── Page Editor ─────────────────────────────────────────── */
+.pg-wrap {
+  --pg-ink: #F1F3EE;
+  --pg-mute: #8E938A;
+  --pg-bg: transparent;
+  --pg-line: #232723;
+  --pg-red: #FF6B5C;
+  --pg-green: #4FE3C1;
+  --pg-amber: #FFB547;
+  --pg-co: #161916;
+  --pg-cob: #2C312C;
+}
+.pg-wrap[data-theme="paper"] {
+  --pg-ink: #2b2620;
+  --pg-mute: #9a9384;
+  --pg-bg: #fbf7ec;
+  --pg-line: #e7dfc4;
+  --pg-red: #c0392b;
+  --pg-green: #2f8f5b;
+  --pg-amber: #c8852a;
+  --pg-co: #f6f1dd;
+  --pg-cob: #e7dfc4;
+}
+.pg-doc {
+  color: var(--pg-ink);
+}
+.pg-rt {
+  outline: none;
+  line-height: 1.6;
+  min-height: 1.5em;
+}
+.pg-rt:empty::before {
+  content: attr(data-ph);
+  color: var(--pg-mute);
+  opacity: 0.6;
+  pointer-events: none;
+}
+.pg-rt b,
+.pg-rt strong { font-weight: 700; }
+.pg-rt i,
+.pg-rt em { font-style: italic; }
+.pg-rt u { text-decoration: underline; }
+.pg-rt s { text-decoration: line-through; }
+
+/* Block container */
+.pg-block {
+  position: relative;
+}
+
+/* Drag handle */
+.pg-handle {
+  position: absolute;
+  left: -44px;
+  top: 2px;
+  display: flex;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity 0.12s;
+  pointer-events: none;
+}
+.pg-block:hover .pg-handle {
+  opacity: 1;
+  pointer-events: auto;
+}
+.pg-hbtn {
+  width: 20px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--pg-mute);
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.pg-hbtn:hover {
+  background: rgba(127,127,127,0.16);
+  color: var(--pg-ink);
 }

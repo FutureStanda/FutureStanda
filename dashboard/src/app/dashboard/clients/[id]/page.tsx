@@ -10,6 +10,9 @@ import { Icon } from '@/components/ui/icons'
 import { CLIENTS, INTEGRATIONS_DATA, ACTIVITY } from '@/lib/data'
 import { useData, useUI } from '@/store/use-store'
 import { fmtMoney, fmtNum, healthColor } from '@/lib/utils'
+import { OnboardingTracker } from '@/components/clients/OnboardingTracker'
+import { ClientMemory } from '@/components/clients/ClientMemory'
+import { ClientIntegrations } from '@/components/clients/ClientIntegrations'
 import type { Client, Task } from '@/types'
 
 // ---- Integration live-data rules ----
@@ -689,6 +692,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
 
   const defaultTab: TabId = c?.onboarding_active ? 'onboarding' : 'overview'
   const [tab, setTab] = useState<TabId>(defaultTab)
+  const [connectedIds, setConnectedIds] = useState<string[]>(c?.connected || [])
 
   const gotoConnect = useCallback(() => setTab('integrations'), [])
 
@@ -704,7 +708,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
   }
 
   const tabs: Array<[TabId, string]> = [
-    ...(c.onboarding_active ? [['onboarding', 'Onboarding'] as [TabId, string]] : []),
+    ['onboarding', 'Onboarding'],
     ['overview', 'Overview'],
     ['tasks', 'Tasks'],
     ['marketing', 'Marketing'],
@@ -889,7 +893,26 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
           )}
 
           {/* Tab content */}
-          {tab === 'onboarding' && <OnboardingTab c={c} onComplete={() => setTab('overview')} />}
+          {tab === 'onboarding' && (
+            c.onboarding_active
+              ? <OnboardingTracker c={c} onComplete={() => setTab('overview')} />
+              : (
+                <div className="panel fadeup" style={{ padding: 36, textAlign: 'center', borderColor: '#cfff3a3a', background: 'linear-gradient(135deg,#14180d,transparent 60%)' }}>
+                  <span style={{ width: 52, height: 52, borderRadius: 14, background: 'var(--lime)', color: '#0a0a0a', display: 'grid', placeItems: 'center', margin: '0 auto 16px', boxShadow: 'var(--shadow-lime)' }}>
+                    <Icon name="check" size={22} />
+                  </span>
+                  <div style={{ font: '600 22px var(--font-sans)', letterSpacing: '-0.02em', marginBottom: 8 }}>
+                    Onboarding <em style={{ fontStyle: 'italic' }}>complete.</em>
+                  </div>
+                  <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 auto 20px', maxWidth: 340, lineHeight: 1.6 }}>
+                    {c.name} was fully onboarded{c.onboarding_started ? ` — started ${c.onboarding_started}` : ''} and is now live on the dashboard.
+                  </p>
+                  <button onClick={() => setTab('overview')} className="btn btn-primary" style={{ height: 36, margin: '0 auto' }}>
+                    <Icon name="arrowR" size={14} />Go to live dashboard
+                  </button>
+                </div>
+              )
+          )}
           {tab === 'overview' && <OverviewTab c={c} gotoConnect={gotoConnect} />}
           {tab === 'tasks' && <TasksTab c={c} />}
           {tab === 'marketing' && <MarketingTab c={c} />}
@@ -902,8 +925,13 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
           )}
           {tab === 'leads' && <LeadsTab c={c} />}
           {tab === 'reputation' && <ReputationTab c={c} />}
-          {tab === 'integrations' && <IntegrationsTab c={c} />}
-          {tab === 'memory' && <MemoryTab c={c} />}
+          {tab === 'integrations' && (
+            <ClientIntegrations
+              c={c}
+              onConnected={ids => setConnectedIds(ids)}
+            />
+          )}
+          {tab === 'memory' && <ClientMemory c={c} />}
         </div>
       </div>
     </div>
