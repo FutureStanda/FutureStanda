@@ -5,6 +5,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/icons'
 
+const isRealSupabase = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').includes('.supabase.co') &&
+  !(process.env.NEXT_PUBLIC_SUPABASE_URL || '').includes('placeholder') &&
+  (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').length > 40
+
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -16,14 +20,26 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    // Demo: accept any credentials
-    await new Promise(r => setTimeout(r, 800))
-    router.push('/dashboard/briefing')
+
+    if (isRealSupabase) {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+      if (authError) {
+        setError(authError.message)
+        setLoading(false)
+        return
+      }
+      router.push('/dashboard/briefing')
+      router.refresh()
+    } else {
+      await new Promise(r => setTimeout(r, 800))
+      router.push('/dashboard/briefing')
+    }
   }
 
   return (
     <div style={{ width: 400 }}>
-      {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40, justifyContent: 'center' }}>
         <div style={{ width: 36, height: 36, borderRadius: 11, background: 'var(--lime)', display: 'grid', placeItems: 'center', boxShadow: '0 0 30px #CFFF3A40' }}>
           <Icon name="bolt" size={18} color="#0a0a0a" />
@@ -92,9 +108,11 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <p style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: 'var(--text-3)' }}>
-        Demo mode — enter any email & password to continue
-      </p>
+      {!isRealSupabase && (
+        <p style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: 'var(--text-3)' }}>
+          Demo mode — enter any email & password to continue
+        </p>
+      )}
     </div>
   )
 }
