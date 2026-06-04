@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/icons'
 
 const isRealSupabase = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').includes('.supabase.co') &&
@@ -10,7 +9,6 @@ const isRealSupabase = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').includes('.s
   (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').length > 40
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -22,20 +20,23 @@ export default function LoginPage() {
     setError('')
 
     if (isRealSupabase) {
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
-      const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
-      if (authError) {
-        setError(authError.message)
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+        const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+        if (authError) {
+          setError(authError.message)
+          setLoading(false)
+          return
+        }
+      } catch {
+        setError('Connection error — try the demo access below')
         setLoading(false)
         return
       }
-      router.push('/dashboard/briefing')
-      router.refresh()
-    } else {
-      await new Promise(r => setTimeout(r, 800))
-      router.push('/dashboard/briefing')
     }
+
+    window.location.href = '/dashboard/briefing'
   }
 
   return (
@@ -109,9 +110,23 @@ export default function LoginPage() {
       </div>
 
       {!isRealSupabase && (
-        <p style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: 'var(--text-3)' }}>
-          Demo mode — enter any email & password to continue
-        </p>
+        <div style={{ marginTop: 24, textAlign: 'center' }}>
+          <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 10 }}>
+            Demo mode — enter any email &amp; password, or:
+          </p>
+          <a
+            href="/dashboard/briefing"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              height: 38, padding: '0 18px', borderRadius: 10,
+              background: 'var(--lime)', color: '#0a0a0a',
+              font: '600 13px var(--font-sans)', textDecoration: 'none',
+            }}
+          >
+            <Icon name="bolt" size={13} color="#0a0a0a" />
+            Go straight to dashboard
+          </a>
+        </div>
       )}
     </div>
   )
