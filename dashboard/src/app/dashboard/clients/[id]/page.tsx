@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { TopBar } from '@/components/layout/TopBar'
 import { Avatar, Delta, HealthPill, PlanBadge, PriorityDot } from '@/components/ui/shared'
@@ -883,10 +883,11 @@ function AutomationsTab({ c }: { c: Client }) {
 // ---- Main Page ----
 type TabId = 'onboarding' | 'overview' | 'tasks' | 'marketing' | 'automations' | 'leads' | 'reputation' | 'integrations' | 'memory'
 
-export default function ClientDetailPage({ params }: { params: { id: string } }) {
+export default function ClientDetailPage() {
   const router = useRouter()
+  const { id } = useParams<{ id: string }>()
   const { setAiOpen } = useUI()
-  const c = CLIENTS.find(cl => cl.id === params.id)
+  const c = CLIENTS.find(cl => cl.id === id)
 
   const defaultTab: TabId = c?.onboarding_active ? 'onboarding' : 'overview'
   const [tab, setTab] = useState<TabId>(defaultTab)
