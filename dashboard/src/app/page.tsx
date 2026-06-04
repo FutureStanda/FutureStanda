@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 
 export default function Home() {
-  redirect('/dashboard/briefing')
+  // Serve the real BizBoost design app (verbatim, 1:1) from /public/studio
+  redirect('/studio/index.html')
 }
