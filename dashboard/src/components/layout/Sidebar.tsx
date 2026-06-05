@@ -96,10 +96,12 @@ function AccountMenu({ onClose }: { onClose: () => void }) {
         </div>
         <div style={{ height: 1, background: 'var(--border)', margin: '0 6px' }} />
         <div style={{ padding: '6px' }}>
-          <Link href="/login" onClick={onClose} style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 8, color: 'var(--red)', font: '500 12.5px var(--font-sans)', textDecoration: 'none' }}>
-            <Icon name="logout" size={14} />
-            <span>Log out</span>
-          </Link>
+          <form action="/auth/signout" method="post">
+            <button type="submit" onClick={onClose} style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 8, color: 'var(--red)', font: '500 12.5px var(--font-sans)', textAlign: 'left' }}>
+              <Icon name="logout" size={14} />
+              <span>Log out</span>
+            </button>
+          </form>
         </div>
       </div>
     </>

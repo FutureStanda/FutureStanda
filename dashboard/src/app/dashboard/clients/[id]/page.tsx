@@ -13,6 +13,7 @@ import { fmtMoney, fmtNum, healthColor, timeAgo } from '@/lib/utils'
 import { OnboardingTracker } from '@/components/clients/OnboardingTracker'
 import { ClientMemory } from '@/components/clients/ClientMemory'
 import { ClientIntegrations } from '@/components/clients/ClientIntegrations'
+import { PortalAccess } from '@/components/clients/PortalAccess'
 import { AdminDrill } from '@/components/overlays/AdminDrill'
 import type { DrillTopic } from '@/components/overlays/AdminDrill'
 import type { Client, Task } from '@/types'
@@ -983,6 +984,7 @@ export default function ClientDetailPage() {
                 <Link href={`/portal/${c.id}`} className="btn">
                   <Icon name="eye" size={13} />Client view
                 </Link>
+                <PortalAccess clientId={c.id} clientName={c.name} />
                 <button
                   onClick={() => setAiOpen(true)}
                   className="btn"
